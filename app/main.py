@@ -36,6 +36,19 @@ def create_app():
         with open(STATE_PATH, 'w') as f:
             json.dump(state, f, indent=2)
 
+    @app.route('/')
+    def home():
+        return '''
+        <h1>TaskTycoon - Şirket Kurma Oyunu</h1>
+        <p>API Endpointleri:</p>
+        <ul>
+            <li>GET /api/state - Şirket durumunu görüntüle</li>
+            <li>POST /api/task - Görev yap</li>
+        </ul>
+        <p>Örnek kullanım:</p>
+        <pre>curl http://127.0.0.1:5000/api/state</pre>
+        '''
+
     @app.route('/api/state', methods=['GET'])
     def get_state():
         state = load_state()
