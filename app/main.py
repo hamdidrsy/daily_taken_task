@@ -14,6 +14,7 @@ def create_app():
             "day": 1,
             "cash": 1000,
             "xp": 0,
+            "level": 1,
             "energy": 100,
             "maxEnergy": 100,
             "research": 0,
@@ -44,6 +45,7 @@ def create_app():
         <ul>
             <li>GET /api/state - Şirket durumunu görüntüle</li>
             <li>POST /api/task - Görev yap</li>
+            <li>POST /api/day/end - Günü bitir</li>
         </ul>
         <p>Örnek kullanım:</p>
         <pre>curl http://127.0.0.1:5000/api/state</pre>
@@ -102,6 +104,61 @@ def create_app():
         
         save_state(state)
         return jsonify(state)
+
+    @app.route('/api/day/end', methods=['POST'])
+    def end_day():
+        state = load_state()
+        departments = state['departments']
+        
+        # Gün sonu giderleri (maaş/işletme maliyetleri)
+        base_upkeep = 50  # Temel işletme maliyeti
+        total_upkeep = (base_upkeep + 
+                       50 * departments['engLevel'] + 
+                       40 * departments['rndLevel'] + 
+                       30 * departments['hrLevel'] + 
+                       60 * departments['salesLevel'])
+        
+        state['cash'] -= total_upkeep
+        
+        # Araştırma etkisi: her 10 research → reputation +1
+        research_bonus = int(state['research'] / 10)
+        state['reputation'] += research_bonus
+        
+        # Level kontrolü ve atlama
+        current_level = state.get('level', 1)
+        level_up_cost = 50 * current_level
+        
+        if state['xp'] >= level_up_cost:
+            state['xp'] -= level_up_cost
+            new_level = current_level + 1
+            state['level'] = new_level
+            
+            # Level atladığında energy boost
+            energy_bonus = 10
+            state['maxEnergy'] += energy_bonus
+            state['energy'] = min(state['maxEnergy'], state['energy'] + energy_bonus)
+        
+        # Gün sonu energy reset (kısmi yenileme)
+        energy_restore = int(state['maxEnergy'] * 0.3)  # %30 yenileme
+        state['energy'] = min(state['maxEnergy'], state['energy'] + energy_restore)
+        
+        # Gün sayacını artır
+        state['day'] += 1
+        
+        # İstatistikler
+        day_summary = {
+            'previous_day': state['day'] - 1,
+            'upkeep_cost': total_upkeep,
+            'research_bonus': research_bonus,
+            'energy_restored': energy_restore,
+            'level_up': state.get('level', 1) > current_level
+        }
+        
+        save_state(state)
+        return jsonify({
+            'state': state,
+            'day_summary': day_summary
+        })
 
     # Uygulama başlatılırken state dosyası oluşturulsun
     os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
