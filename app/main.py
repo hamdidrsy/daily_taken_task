@@ -46,6 +46,8 @@ def create_app():
             <li>GET /api/state - Şirket durumunu görüntüle</li>
             <li>POST /api/task - Görev yap</li>
             <li>POST /api/day/end - Günü bitir</li>
+            <li>POST /api/department/unlock - Departman aç</li>
+            <li>POST /api/department/levelup - Departman seviye artır</li>
         </ul>
         <p>Örnek kullanım:</p>
         <pre>curl http://127.0.0.1:5000/api/state</pre>
@@ -158,6 +160,86 @@ def create_app():
         return jsonify({
             'state': state,
             'day_summary': day_summary
+        })
+
+    @app.route('/api/department/unlock', methods=['POST'])
+    def unlock_department():
+        data = request.get_json()
+        department = data.get('department')
+        
+        # Geçerli departman kontrolü
+        valid_departments = ['eng', 'rnd', 'hr', 'sales']
+        if department not in valid_departments:
+            return jsonify({'error': 'Geçersiz departman tipi'}), 400
+        
+        state = load_state()
+        departments = state['departments']
+        dept_key = f"{department}Level"
+        
+        # Zaten açık mı kontrol et
+        if departments[dept_key] > 0:
+            return jsonify({'error': 'Departman zaten açık'}), 400
+        
+        # Açma maliyetleri
+        unlock_costs = {
+            'eng': 0,      # Mühendislik ücretsiz
+            'rnd': 500,    # Ar-Ge 500 TL
+            'hr': 300,     # İnsan Kaynakları 300 TL
+            'sales': 400   # Satış 400 TL
+        }
+        
+        cost = unlock_costs[department]
+        if state['cash'] < cost:
+            return jsonify({'error': 'Yetersiz nakit'}), 400
+        
+        # Departmanı aç
+        state['cash'] -= cost
+        departments[dept_key] = 1  # Seviye 1'e çıkar
+        
+        save_state(state)
+        return jsonify({
+            'message': f'{department} departmanı açıldı',
+            'cost': cost,
+            'state': state
+        })
+
+    @app.route('/api/department/levelup', methods=['POST'])
+    def levelup_department():
+        data = request.get_json()
+        department = data.get('department')
+        
+        # Geçerli departman kontrolü
+        valid_departments = ['eng', 'rnd', 'hr', 'sales']
+        if department not in valid_departments:
+            return jsonify({'error': 'Geçersiz departman tipi'}), 400
+        
+        state = load_state()
+        departments = state['departments']
+        dept_key = f"{department}Level"
+        
+        current_level = departments[dept_key]
+        
+        # Departman açık mı kontrol et
+        if current_level == 0:
+            return jsonify({'error': 'Departman henüz açılmamış'}), 400
+        
+        # Seviye artırma maliyeti: 200 * yeni_seviye
+        new_level = current_level + 1
+        cost = 200 * new_level
+        
+        if state['cash'] < cost:
+            return jsonify({'error': 'Yetersiz nakit'}), 400
+        
+        # Seviye artır
+        state['cash'] -= cost
+        departments[dept_key] = new_level
+        
+        save_state(state)
+        return jsonify({
+            'message': f'{department} departmanı seviye {new_level}\'e yükseltildi',
+            'cost': cost,
+            'new_level': new_level,
+            'state': state
         })
 
     # Uygulama başlatılırken state dosyası oluşturulsun
