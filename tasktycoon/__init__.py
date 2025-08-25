@@ -3,7 +3,9 @@ from .config import DATA_DIR, STATE_PATH
 import os
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, 
+                static_folder='static',
+                template_folder='templates')
 
     # Gerekli klasör ve state dosyasını oluştur
     os.makedirs(DATA_DIR, exist_ok=True)

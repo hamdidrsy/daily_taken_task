@@ -1,11 +1,17 @@
-from flask import Blueprint
+from flask import Blueprint, render_template
+from ..services.state_service import load_state
 
 home_bp = Blueprint('home', __name__)
 
 @home_bp.route('/')
 def home():
+    state = load_state()
+    return render_template('dashboard.html', state=state)
+
+@home_bp.route('/api-docs')
+def api_docs():
     return '''
-    <h1>TaskTycoon - Şirket Kurma Oyunu</h1>
+    <h1>TaskTycoon - API Documentation</h1>
     <p>API Endpointleri:</p>
     <ul>
         <li>GET /api/state - Şirket durumunu görüntüle</li>
