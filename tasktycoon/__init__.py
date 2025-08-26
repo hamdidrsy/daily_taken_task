@@ -21,6 +21,8 @@ def create_app():
     from .routes.department import department_bp
     from .routes.manage import manage_bp
     from .routes.employees import employees_bp
+    from .routes.employee import employee_bp
+    from .routes.dashboard import dashboard_bp
 
     app.register_blueprint(home_bp)
     app.register_blueprint(state_bp)
@@ -29,5 +31,7 @@ def create_app():
     app.register_blueprint(department_bp)
     app.register_blueprint(manage_bp)
     app.register_blueprint(employees_bp)
+    app.register_blueprint(employee_bp)
+    app.register_blueprint(dashboard_bp)
 
     return app
