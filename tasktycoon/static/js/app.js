@@ -408,8 +408,7 @@ function resetGame() {
     if (!confirm('Oyunu sıfırlamak istediğinizden emin misiniz? Tüm ilerleme kaybolacak!')) {
         return;
     }
-    
-    fetch('/api/state/reset', {
+    fetch('/api/reset_all', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

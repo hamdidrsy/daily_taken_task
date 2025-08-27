@@ -74,8 +74,13 @@ def end_day():
         'bankruptcy_message': bankruptcy_message
     }
 
+    # Günlük özet geçmişine ekle
+    if 'dayHistory' not in state:
+        state['dayHistory'] = []
+    state['dayHistory'].append(day_summary)
+
     save_state(state)
-    
+
     return jsonify({
         'success': True,
         'message': f"Gün {day_summary['previous_day']} tamamlandı! Toplam maliyet: {total_cost:.0f} TL",

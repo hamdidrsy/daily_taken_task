@@ -1,7 +1,15 @@
+
 from flask import Blueprint, request, jsonify
 from ..services.state_service import load_state, save_state, get_default_state
 
 manage_bp = Blueprint('manage', __name__)
+
+@manage_bp.route('/api/reset_all', methods=['POST'])
+def reset_all():
+    """Tüm kullanıcı girdilerini ve state'i sıfırla"""
+    default_state = get_default_state()
+    save_state(default_state)
+    return jsonify({'success': True, 'message': 'Tüm state sıfırlandı', 'state': default_state})
 
 @manage_bp.route('/api/save', methods=['POST'])
 def manual_save():

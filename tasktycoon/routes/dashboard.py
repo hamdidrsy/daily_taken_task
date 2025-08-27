@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from ..services.state_service import load_state
 from ..services.economic_service import EconomicSystem
 import json
