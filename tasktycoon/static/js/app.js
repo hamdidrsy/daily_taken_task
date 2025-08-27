@@ -1,35 +1,87 @@
 // TaskTycoon Dashboard JavaScript
-console.log('TaskTycoon JavaScript loaded successfully!');
+// Departman kodunu kullanıcıya okunabilir şekilde çeviren yardımcı fonksiyon
+function getDepartmentDisplayName(deptKey) {
+    const map = {
+        'engLevel': 'Mühendislik',
+        'rndLevel': 'Ar-Ge',
+        'hrLevel': 'İK',
+        'salesLevel': 'Satış'
+    };
+    return map[deptKey] || deptKey;
+}
+console.log('TaskTycoon JavaScript başarıyla yüklendi!');
 
 let gameState = null;
 
 // State update functions
+function animateValue(id, start, end, duration, formatter) {
+    const obj = document.getElementById(id);
+    if (!obj) return;
+    const range = end - start;
+    let startTime = null;
+    function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const progress = Math.min((timestamp - startTime) / duration, 1);
+        const value = Math.floor(start + range * progress);
+        obj.textContent = formatter ? formatter(value) : value;
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        } else {
+            obj.textContent = formatter ? formatter(end) : end;
+        }
+    }
+    window.requestAnimationFrame(step);
+}
+
+let lastCash = null;
+let lastResearch = null;
+
 function updateDashboard() {
     fetch('/api/state')
         .then(response => response.json())
         .then(state => {
             gameState = state;
-            
-            // Update basic stats
-            document.getElementById('cash').textContent = new Intl.NumberFormat().format(state.cash);
-            document.getElementById('research').textContent = state.research;
+            // Animasyonlu para ve araştırma
+            const cashVal = typeof state.cash === 'number' ? state.cash : 0;
+            const researchVal = typeof state.research === 'number' ? state.research : 0;
+            if (lastCash !== null && lastCash !== cashVal) {
+                animateValue('cash', lastCash, cashVal, 700, v => new Intl.NumberFormat().format(v));
+            } else {
+                document.getElementById('cash').textContent = new Intl.NumberFormat().format(cashVal);
+            }
+            if (lastResearch !== null && lastResearch !== researchVal) {
+                animateValue('research', lastResearch, researchVal, 700);
+            } else {
+                document.getElementById('research').textContent = researchVal;
+            }
+            lastCash = cashVal;
+            lastResearch = researchVal;
             document.getElementById('energy').textContent = state.energy;
-            document.getElementById('day').textContent = state.day;
-            
+            document.getElementById('current-day').textContent = state.current_day || state.day;
             // Update progress bars
-            const energyBar = document.getElementById('energyBar');
-            const energyPercent = (state.energy / 100) * 100;
-            energyBar.style.width = energyPercent + '%';
-            energyBar.setAttribute('aria-valuenow', state.energy);
-            
+            const energyBar = document.getElementById('energy-bar');
+            if (energyBar) {
+                const energyPercent = (state.energy / 100) * 100;
+                energyBar.style.width = energyPercent + '%';
+                energyBar.setAttribute('aria-valuenow', state.energy);
+                energyBar.textContent = state.energy + '/100';
+            }
             // Update departments
             updateDepartmentsDisplay();
-            
             // Update employees
             updateEmployeesDisplay();
+            // Tooltipleri yeniden başlat
+            if (window.bootstrap) {
+                setTimeout(() => {
+                    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                        new bootstrap.Tooltip(tooltipTriggerEl);
+                    });
+                }, 200);
+            }
         })
         .catch(error => {
-            console.error('Error updating dashboard:', error);
+            console.error('Dashboard güncellenirken hata:', error);
             showAlert('Dashboard güncellenirken hata oluştu', 'danger');
         });
 }
@@ -45,26 +97,35 @@ function updateDepartmentsDisplay() {
     for (const [deptName, deptInfo] of Object.entries(gameState.departments)) {
         const col = document.createElement('div');
         col.className = 'col-md-6 mb-3';
-        
+        const displayName = getDepartmentDisplayName(deptName);
+        const level = (typeof deptInfo === 'object') ? (deptInfo.level || 0) : deptInfo;
+        const employeeCount = (typeof deptInfo === 'object' && Array.isArray(deptInfo.employees)) ? deptInfo.employees.length : 0;
         col.innerHTML = `
             <div class="card border-secondary">
                 <div class="card-body text-center">
-                    <h6 class="card-title">${deptName}</h6>
+                    <h6 class="card-title">${displayName}</h6>
                     <p class="card-text">
                         <small class="text-muted">
-                            Seviye: ${deptInfo.level || deptInfo}<br>
-                            Çalışan: ${deptInfo.employees ? deptInfo.employees.length : 0}
+                            Seviye: ${level}<br>
+                            Çalışan: ${employeeCount}
                         </small>
                     </p>
-                    <button class="btn btn-sm btn-outline-primary" onclick="upgradeDepartment('${deptName}')">
+                    <button class="btn btn-sm btn-outline-primary" onclick="upgradeDepartment('${deptName}')" data-bs-toggle="tooltip" title="Departmanı geliştirerek daha fazla çalışan ve gelir elde edebilirsin!">
                         <i class="fas fa-arrow-up"></i> Geliştir
                     </button>
                 </div>
             </div>
         `;
-        
         container.appendChild(col);
     }
+}
+
+// Eksik olan showAddDepartmentModal fonksiyonu (doğru yerde)
+function showAddDepartmentModal() {
+    const modalEl = document.getElementById('addDepartmentModal');
+    if (!modalEl) return;
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
 }
 
 function updateEmployeesDisplay() {
@@ -113,7 +174,7 @@ function executeTask(taskType) {
         }
     })
     .catch(error => {
-        console.error('Error executing task:', error);
+        console.error('Görev yürütülürken hata:', error);
         showAlert('Görev gerçekleştirilirken hata oluştu', 'danger');
     });
 }
@@ -136,7 +197,7 @@ function upgradeDepartment(deptType) {
         }
     })
     .catch(error => {
-        console.error('Error upgrading department:', error);
+        console.error('Departman yükseltilirken hata:', error);
         showAlert('Departman yükseltilirken hata oluştu', 'danger');
     });
 }
@@ -196,7 +257,7 @@ function hireEmployee() {
         }
     })
     .catch(error => {
-        console.error('Error hiring employee:', error);
+        console.error('Çalışan işe alınırken hata:', error);
         showAlert('Çalışan işe alınırken hata oluştu', 'danger');
     });
 }
@@ -219,7 +280,7 @@ function restoreEnergy() {
         }
     })
     .catch(error => {
-        console.error('Error restoring energy:', error);
+        console.error('Enerji yenilenirken hata:', error);
         showAlert('Enerji yenilenirken hata oluştu', 'danger');
     });
 }
@@ -228,7 +289,6 @@ function endDay() {
     if (!confirm('Günü bitirmek istediğinizden emin misiniz?')) {
         return;
     }
-    
     fetch('/api/day/end', {
         method: 'POST',
         headers: {
@@ -238,16 +298,62 @@ function endDay() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert(data.message, 'info');
             updateDashboard();
+            // Gün sonu özet modalı göster
+            showDaySummaryModal(data.day_summary || data.summary || data.message);
         } else {
             showAlert(data.message, 'warning');
         }
     })
     .catch(error => {
-        console.error('Error ending day:', error);
+        console.error('Gün bitirilirken hata:', error);
         showAlert('Gün bitirilirken hata oluştu', 'danger');
     });
+}
+// Gün sonu özet modalı (gelişmiş, iç içe nesneleri destekler)
+function showDaySummaryModal(summary) {
+    const modalEl = document.getElementById('daySummaryModal');
+    const contentEl = document.getElementById('day-summary-content');
+    if (!modalEl || !contentEl) return;
+
+    function renderValue(value) {
+        if (value === null || value === undefined) return '<span class="text-muted">-</span>';
+        if (typeof value === 'object') {
+            if (Array.isArray(value)) {
+                return `<ul>${value.map(v => `<li>${renderValue(v)}</li>`).join('')}</ul>`;
+            } else {
+                // İç içe nesne
+                return `<ul class="list-group mb-2">${Object.entries(value).map(([k, v]) => `<li class="list-group-item d-flex justify-content-between align-items-center"><span>${k}</span><span>${renderValue(v)}</span></li>`).join('')}</ul>`;
+            }
+        }
+        return String(value);
+    }
+
+    if (typeof summary === 'object' && summary !== null) {
+        let html = '';
+        // Eğer bankruptcy_message gibi özel anahtarlar varsa öne çıkar
+        if (summary.bankruptcy_message) {
+            html += `<div class="alert alert-danger">${summary.bankruptcy_message}</div>`;
+        }
+        for (const [key, value] of Object.entries(summary)) {
+            if (key === 'bankruptcy_message') continue;
+            html += `<div class="mb-2"><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${renderValue(value)}</div>`;
+        }
+        contentEl.innerHTML = html;
+    } else {
+        contentEl.textContent = summary;
+    }
+    const modal = new bootstrap.Modal(modalEl);
+
+    // Eski event listener'ları temizle
+    modalEl.removeEventListener('hidden.bs.modal', modalEl._updateDashboardHandler || (()=>{}));
+    // Yeni event listener ekle
+    modalEl._updateDashboardHandler = function() {
+        updateDashboard();
+    };
+    modalEl.addEventListener('hidden.bs.modal', modalEl._updateDashboardHandler);
+
+    modal.show();
 }
 
 // Save/Load functions
@@ -267,7 +373,7 @@ function saveGame() {
         }
     })
     .catch(error => {
-        console.error('Error saving game:', error);
+        console.error('Oyun kaydedilirken hata:', error);
         showAlert('Oyun kaydedilirken hata oluştu', 'danger');
     });
 }
@@ -293,7 +399,7 @@ function loadGame() {
         }
     })
     .catch(error => {
-        console.error('Error loading game:', error);
+        console.error('Oyun yüklenirken hata:', error);
         showAlert('Oyun yüklenirken hata oluştu', 'danger');
     });
 }
@@ -319,7 +425,7 @@ function resetGame() {
         }
     })
     .catch(error => {
-        console.error('Error resetting game:', error);
+        console.error('Oyun sıfırlanırken hata:', error);
         showAlert('Oyun sıfırlanırken hata oluştu', 'danger');
     });
 }
@@ -354,9 +460,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set up auto-refresh every 30 seconds
     setInterval(updateDashboard, 30000);
     
-    // Show welcome message
+    // Hoş geldiniz mesajı
     setTimeout(() => {
-        showAlert('TaskTycoon\'a hoş geldiniz! Şirketinizi büyütmek için görevleri gerçekleştirin.', 'info');
+        showAlert('TaskTycoon\'a hoş geldiniz! Şirketinizi büyütmek için görevleri tamamlayın.', 'info');
     }, 1000);
 });
 

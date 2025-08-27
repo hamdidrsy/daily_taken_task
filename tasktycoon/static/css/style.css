@@ -173,6 +173,14 @@ body {
     animation: fadeInUp 0.5s ease;
 }
 
+/* Fixed navbar spacing: desktop and mobile adjustments */
+body {
+    padding-top: 72px; /* default for desktop */
+}
+@media (max-width: 768px) {
+    body { padding-top: 56px; }
+}
+
 /* Custom scrollbar */
 #employees-container::-webkit-scrollbar {
     width: 8px;
