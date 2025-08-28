@@ -8,6 +8,9 @@ day_bp = Blueprint('day', __name__)
 def end_day():
     state = load_state()
     
+    # Snapshot cash before end-of-day processing (represents cash before daily costs applied)
+    starting_cash = state.get('cash', 0)
+
     # Calculate economic costs using new system
     daily_costs = EconomicSystem.calculate_daily_costs(state)
     total_cost = daily_costs['total_cost']
@@ -73,6 +76,12 @@ def end_day():
         'level_up': level_up_happened,
         'bankruptcy_message': bankruptcy_message
     }
+
+    # Add starting/ending cash snapshot so frontend can show income/expense/net
+    ending_cash = state.get('cash', 0)
+    day_summary['starting_cash'] = starting_cash
+    day_summary['ending_cash'] = ending_cash
+    day_summary['net_change'] = ending_cash - starting_cash
 
     # Günlük özet geçmişine ekle
     if 'dayHistory' not in state:

@@ -233,3 +233,24 @@ def _generate_recommendations(state, predictions):
             })
     
     return recommendations
+
+
+# Simple history endpoint to fetch last N day summaries
+@dashboard_bp.route('/api/history', methods=['GET'])
+def get_history():
+    try:
+        n = int(request.args.get('n', 7))
+    except Exception:
+        n = 7
+
+    state = load_state()
+    history = state.get('dayHistory', []) or []
+
+    # Return the last n entries (most recent last)
+    recent = history[-n:]
+
+    return jsonify({
+        'success': True,
+        'count': len(recent),
+        'history': recent
+    })

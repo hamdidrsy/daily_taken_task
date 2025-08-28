@@ -79,11 +79,77 @@ function updateDashboard() {
                     });
                 }, 200);
             }
+            // Refresh history panel
+            fetchAndRenderHistory(7);
         })
         .catch(error => {
             console.error('Dashboard güncellenirken hata:', error);
             showAlert('Dashboard güncellenirken hata oluştu', 'danger');
         });
+}
+
+// Fetch history from backend and render into the history card
+function fetchAndRenderHistory(n = 7) {
+    fetch(`/api/history?n=${n}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                document.getElementById('history-container').innerHTML = '<small class="text-danger">Rapor yüklenemedi</small>';
+                return;
+            }
+            renderHistory(data.history || []);
+        })
+        .catch(err => {
+            console.error('History fetch error', err);
+            document.getElementById('history-container').innerHTML = '<small class="text-danger">Rapor yüklenemedi</small>';
+        });
+}
+
+function renderHistory(history) {
+    const container = document.getElementById('history-container');
+    if (!container) return;
+
+    if (!history || history.length === 0) {
+        container.innerHTML = '<small class="text-muted">Henüz günlük özet yok</small>';
+        return;
+    }
+
+    // Build table
+    let html = '<div class="table-responsive"><table class="table table-sm mb-2"><thead><tr><th>Gün</th><th>Başlangıç</th><th>Bitiş</th><th>Net</th></tr></thead><tbody>';
+    const values = [];
+    history.forEach(h => {
+        const day = h.previous_day != null ? h.previous_day : '-';
+        const start = typeof h.starting_cash === 'number' ? h.starting_cash : (h.financial_health && h.financial_health.cash ? h.financial_health.cash : 0);
+        const end = typeof h.ending_cash === 'number' ? h.ending_cash : start - (h.costs ? h.costs.total_cost : 0);
+        const net = (typeof h.net_change === 'number') ? h.net_change : (end - start);
+        html += `<tr><td>${day}</td><td>${new Intl.NumberFormat().format(Math.round(start))} TL</td><td>${new Intl.NumberFormat().format(Math.round(end))} TL</td><td>${net >= 0 ? '+' : ''}${new Intl.NumberFormat().format(Math.round(net))} TL</td></tr>`;
+        values.push(net);
+    });
+    html += '</tbody></table></div>';
+
+    // Small sparkline
+    const spark = buildSparklineSVG(values, 200, 40);
+    html += `<div class="d-flex justify-content-center">${spark}</div>`;
+
+    container.innerHTML = html;
+}
+
+// Build a tiny inline SVG sparkline from numeric array
+function buildSparklineSVG(values, width = 200, height = 40) {
+    if (!values || values.length === 0) return '';
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    const step = width / Math.max(values.length - 1, 1);
+    const points = values.map((v, i) => {
+        const x = Math.round(i * step);
+        const y = Math.round(height - ((v - min) / range) * height);
+        return `${x},${y}`;
+    }).join(' ');
+
+    const poly = `<polyline fill="none" stroke="#0d6efd" stroke-width="2" points="${points}"/>`;
+    const svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${poly}</svg>`;
+    return svg;
 }
 
 function updateDepartmentsDisplay() {
@@ -177,6 +243,11 @@ function executeTask(taskType) {
         console.error('Görev yürütülürken hata:', error);
         showAlert('Görev gerçekleştirilirken hata oluştu', 'danger');
     });
+}
+
+// Template uses performTask(...) in onclick handlers, provide a small wrapper
+function performTask(taskType) {
+    return executeTask(taskType);
 }
 
 // Department functions
