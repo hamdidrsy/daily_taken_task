@@ -81,11 +81,50 @@ function updateDashboard() {
             }
             // Refresh history panel
             fetchAndRenderHistory(7);
+            // Refresh achievements panel
+            fetchAndRenderAchievements();
         })
         .catch(error => {
             console.error('Dashboard güncellenirken hata:', error);
             showAlert('Dashboard güncellenirken hata oluştu', 'danger');
         });
+}
+
+// Fetch achievements from backend and render into the achievements card
+function fetchAndRenderAchievements() {
+    fetch('/api/achievements')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                document.getElementById('achievements-container').innerHTML = '<small class="text-danger">Başarımlar yüklenemedi</small>';
+                return;
+            }
+            renderAchievements(data.achievements || []);
+        })
+        .catch(err => {
+            console.error('Achievements fetch error', err);
+            document.getElementById('achievements-container').innerHTML = '<small class="text-danger">Başarımlar yüklenemedi</small>';
+        });
+}
+
+function renderAchievements(achievements) {
+    const container = document.getElementById('achievements-container');
+    if (!container) return;
+    if (!achievements || achievements.length === 0) {
+        container.innerHTML = '<small class="text-muted">Henüz başarı yok</small>';
+        return;
+    }
+    let html = '<ul class="list-group list-group-flush">';
+    achievements.forEach(a => {
+        html += `<li class="list-group-item d-flex align-items-center ${a.unlocked ? 'text-success fw-bold' : 'text-muted'}">
+            <i class="fas fa-trophy me-2 ${a.unlocked ? 'text-warning' : 'text-secondary'}"></i>
+            <span>${a.name}</span>
+            <span class="ms-auto small">${a.unlocked ? '✔️' : ''}</span>
+            <br><small>${a.desc}</small>
+        </li>`;
+    });
+    html += '</ul>';
+    container.innerHTML = html;
 }
 
 // Fetch history from backend and render into the history card

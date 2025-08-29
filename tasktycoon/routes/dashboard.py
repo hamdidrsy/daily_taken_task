@@ -5,6 +5,27 @@ import json
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
+# Kullanıcı başarımlarını döndüren endpoint
+@dashboard_bp.route('/api/achievements', methods=['GET'])
+def get_achievements():
+    state = load_state()
+    ach = state.get('achievements', {})
+    unlocked = set(ach.get('unlocked', []))
+    all_achs = ach.get('all', [])
+    # Her başarım için unlocked bilgisini ekle
+    ach_list = []
+    for a in all_achs:
+        ach_list.append({
+            'id': a['id'],
+            'name': a['name'],
+            'desc': a['desc'],
+            'unlocked': a['id'] in unlocked
+        })
+    return jsonify({
+        'success': True,
+        'achievements': ach_list
+    })
+
 @dashboard_bp.route('/api/dashboard/stats', methods=['GET'])
 def get_dashboard_stats():
     """Get comprehensive dashboard statistics with economic analysis"""

@@ -24,7 +24,17 @@ def get_default_state():
         "failedTasks": 0,
         "breakthroughs": 0,
         "taskHistory": [],
-        "dayHistory": []
+        "dayHistory": [],
+        "achievements": {
+            "unlocked": [],
+            "all": [
+                {"id": "first_day", "name": "İlk Günü Bitir", "desc": "İlk günü tamamla", "condition": {"day": 1}},
+                {"id": "first_employee", "name": "İlk Çalışan", "desc": "İlk çalışanı işe al", "condition": {"employee_count": 1}},
+                {"id": "first_department", "name": "İlk Departman", "desc": "İlk departmanı aç", "condition": {"department_count": 1}},
+                {"id": "cash_5000", "name": "5000 TL Biriktir", "desc": "Kasada 5000 TL'ye ulaş", "condition": {"cash": 5000}},
+                {"id": "ten_tasks", "name": "10 Görev Tamamla", "desc": "10 görev tamamla", "condition": {"completedTasks": 10}}
+            ]
+        }
     }
 
 def load_state():
@@ -35,6 +45,9 @@ def load_state():
         # Geriye dönük uyumluluk için dayHistory yoksa ekle
         if 'dayHistory' not in state:
             state['dayHistory'] = []
+        # Geriye dönük uyumluluk için achievements yoksa ekle
+        if 'achievements' not in state:
+            state['achievements'] = get_default_state()['achievements']
         return state
 
 def save_state(state):

@@ -60,6 +60,36 @@ def end_day():
     # Advance day
     state['day'] += 1
 
+    # --- BAŞARIM KONTROLÜ ---
+    def check_achievements(state):
+        unlocked = set(state.get('achievements', {}).get('unlocked', []))
+        all_achs = state.get('achievements', {}).get('all', [])
+        new_achievements = []
+        # Koşulları kontrol et
+        for ach in all_achs:
+            cond = ach.get('condition', {})
+            ok = True
+            # Her koşul anahtarı için state ile karşılaştır
+            for k, v in cond.items():
+                if k == 'day' and state.get('day', 0) < v:
+                    ok = False
+                elif k == 'employee_count' and len(state.get('employees', [])) < v:
+                    ok = False
+                elif k == 'department_count' and sum(1 for d in state.get('departments', {}).values() if d > 0) < v:
+                    ok = False
+                elif k == 'cash' and state.get('cash', 0) < v:
+                    ok = False
+                elif k == 'completedTasks' and state.get('completedTasks', 0) < v:
+                    ok = False
+            if ok and ach['id'] not in unlocked:
+                new_achievements.append(ach['id'])
+        # Yeni başarımları ekle
+        if new_achievements:
+            state['achievements']['unlocked'].extend(new_achievements)
+        return new_achievements
+
+    new_achievements = check_achievements(state)
+
     # Day summary with detailed economic breakdown
     day_summary = {
         'previous_day': state['day'] - 1,
@@ -82,6 +112,10 @@ def end_day():
     day_summary['starting_cash'] = starting_cash
     day_summary['ending_cash'] = ending_cash
     day_summary['net_change'] = ending_cash - starting_cash
+
+    # Gün sonunda yeni başarımlar varsa day_summary'ye ekle
+    if new_achievements:
+        day_summary['new_achievements'] = new_achievements
 
     # Günlük özet geçmişine ekle
     if 'dayHistory' not in state:
