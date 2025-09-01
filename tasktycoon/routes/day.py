@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
-from ..services.state_service import load_state, save_state
+from datetime import datetime
+from ..services.state_service import load_state, save_state, apply_random_event
 from ..services.economic_service import EconomicSystem
 
 day_bp = Blueprint('day', __name__)
@@ -62,14 +63,13 @@ def end_day():
 
     # --- BAŞARIM KONTROLÜ ---
     def check_achievements(state):
-        unlocked = set(state.get('achievements', {}).get('unlocked', []))
+        unlocked = state.get('achievements', {}).get('unlocked', {})
         all_achs = state.get('achievements', {}).get('all', [])
         new_achievements = []
-        # Koşulları kontrol et
+        now = datetime.now().isoformat(timespec='seconds')
         for ach in all_achs:
             cond = ach.get('condition', {})
             ok = True
-            # Her koşul anahtarı için state ile karşılaştır
             for k, v in cond.items():
                 if k == 'day' and state.get('day', 0) < v:
                     ok = False
@@ -82,10 +82,8 @@ def end_day():
                 elif k == 'completedTasks' and state.get('completedTasks', 0) < v:
                     ok = False
             if ok and ach['id'] not in unlocked:
-                new_achievements.append(ach['id'])
-        # Yeni başarımları ekle
-        if new_achievements:
-            state['achievements']['unlocked'].extend(new_achievements)
+                state['achievements']['unlocked'][ach['id']] = now
+                new_achievements.append({"id": ach['id'], "name": ach['name'], "unlocked_at": now})
         return new_achievements
 
     new_achievements = check_achievements(state)

@@ -1,3 +1,49 @@
+// İstatistikler panelini doldur
+function fetchAndRenderStats() {
+    fetch('/api/dashboard/stats')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                document.getElementById('stats-container').innerHTML = '<small class="text-danger">İstatistikler yüklenemedi</small>';
+                return;
+            }
+            renderStats(data);
+        })
+        .catch(err => {
+            console.error('Stats fetch error', err);
+            document.getElementById('stats-container').innerHTML = '<small class="text-danger">İstatistikler yüklenemedi</small>';
+        });
+}
+
+function renderStats(data) {
+    const container = document.getElementById('stats-container');
+    if (!container) return;
+    let html = '';
+    // Finansal özet
+    if (data.financial_overview) {
+        html += `<div><strong>Günlük Net Akış:</strong> <span class='${data.financial_overview.net_daily_flow >= 0 ? 'text-success' : 'text-danger'}'>${data.financial_overview.net_daily_flow} TL</span></div>`;
+        html += `<div><strong>Kasa:</strong> ${data.financial_overview.current_cash} TL</div>`;
+        html += `<div><strong>Runway:</strong> ${data.financial_overview.runway_days} gün</div>`;
+    }
+    // Çalışan ve departman
+    if (data.employee_stats) {
+        html += `<div><strong>Çalışan:</strong> ${data.employee_stats.total_employees} / ${data.employee_stats.max_employees}</div>`;
+    }
+    if (data.department_stats) {
+        const activeDepts = Object.values(data.department_stats).filter(d => d.status === 'active').length;
+        html += `<div><strong>Departman:</strong> ${activeDepts} / 4</div>`;
+    }
+    // Görevler
+    if (data.task_performance) {
+        html += `<div><strong>Tamamlanan Görev:</strong> ${data.task_performance.completed_tasks}</div>`;
+        html += `<div><strong>Başarı Oranı:</strong> %${data.task_performance.success_rate.toFixed(1)}</div>`;
+    }
+    // Şirket değeri
+    if (data.company_valuation) {
+        html += `<div><strong>Şirket Değeri:</strong> ${data.company_valuation.total_assets} TL</div>`;
+    }
+    container.innerHTML = html;
+}
 // TaskTycoon Dashboard JavaScript
 // Departman kodunu kullanıcıya okunabilir şekilde çeviren yardımcı fonksiyon
 function getDepartmentDisplayName(deptKey) {
@@ -83,6 +129,8 @@ function updateDashboard() {
             fetchAndRenderHistory(7);
             // Refresh achievements panel
             fetchAndRenderAchievements();
+            // Refresh stats panel
+            fetchAndRenderStats();
         })
         .catch(error => {
             console.error('Dashboard güncellenirken hata:', error);
@@ -409,6 +457,14 @@ function endDay() {
     .then(data => {
         if (data.success) {
             updateDashboard();
+            // Yeni başarımlar bildirimi
+            if (data.day_summary && data.day_summary.new_achievements && data.day_summary.new_achievements.length > 0) {
+                data.day_summary.new_achievements.forEach(ach => {
+                    showAchievementToast(ach.name, ach.unlocked_at);
+                });
+                // Paneli güncelle
+                fetchAndRenderAchievements();
+            }
             // Gün sonu özet modalı göster
             showDaySummaryModal(data.day_summary || data.summary || data.message);
         } else {
@@ -419,6 +475,27 @@ function endDay() {
         console.error('Gün bitirilirken hata:', error);
         showAlert('Gün bitirilirken hata oluştu', 'danger');
     });
+// Başarım toast bildirimi
+function showAchievementToast(name, unlockedAt) {
+    const toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-bg-success border-0 show position-fixed';
+    toast.style.cssText = 'top: 80px; right: 20px; z-index: 9999; min-width: 280px;';
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-trophy text-warning me-2"></i>
+                <strong>Yeni Başarım!</strong><br>
+                <span>${name}</span><br>
+                <small>${unlockedAt ? 'Kazanıldı: ' + unlockedAt : ''}</small>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+    }, 6000);
+}
 }
 // Gün sonu özet modalı (gelişmiş, iç içe nesneleri destekler)
 function showDaySummaryModal(summary) {
@@ -441,12 +518,16 @@ function showDaySummaryModal(summary) {
 
     if (typeof summary === 'object' && summary !== null) {
         let html = '';
+        // Mini event varsa öne çıkar
+        if (summary.mini_event) {
+            html += `<div class="alert alert-info d-flex align-items-center"><i class='fas fa-bolt me-2'></i><div><strong>${summary.mini_event.name}</strong><br><span>${summary.mini_event.desc}</span></div></div>`;
+        }
         // Eğer bankruptcy_message gibi özel anahtarlar varsa öne çıkar
         if (summary.bankruptcy_message) {
             html += `<div class="alert alert-danger">${summary.bankruptcy_message}</div>`;
         }
         for (const [key, value] of Object.entries(summary)) {
-            if (key === 'bankruptcy_message') continue;
+            if (key === 'bankruptcy_message' || key === 'mini_event') continue;
             html += `<div class="mb-2"><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${renderValue(value)}</div>`;
         }
         contentEl.innerHTML = html;
