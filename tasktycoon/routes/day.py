@@ -7,6 +7,25 @@ day_bp = Blueprint('day', __name__)
 
 @day_bp.route('/api/day/end', methods=['POST'])
 def end_day():
+    # Oyun sonu kontrolü
+    game_over = None
+    # İflas: nakit -1000 TL'ye eşit veya daha düşükse
+    if state.get('cash', 0) <= -1000:
+        game_over = {
+            'reason': 'İflas',
+            'desc': 'Şirketiniz iflas etti! Nakit -1000 TL seviyesine düştü.'
+        }
+    # Hedef: 100.000 TL veya 60 gün (örnek)
+    elif state.get('cash', 0) >= 100000:
+        game_over = {
+            'reason': 'Zenginlik',
+            'desc': 'Tebrikler! 100.000 TL kasaya ulaştınız, oyunu başarıyla tamamladınız.'
+        }
+    elif state.get('day', 0) >= 60:
+        game_over = {
+            'reason': '60 Gün Tamamlandı',
+            'desc': '60 gün boyunca şirketinizi yönettiniz. Tebrikler!'
+        }
     state = load_state()
     
     # Snapshot cash before end-of-day processing (represents cash before daily costs applied)
@@ -114,6 +133,11 @@ def end_day():
     # Gün sonunda yeni başarımlar varsa day_summary'ye ekle
     if new_achievements:
         day_summary['new_achievements'] = new_achievements
+
+
+    # Game over bilgisini day_summary'ye ekle
+    if game_over:
+        day_summary['game_over'] = game_over
 
     # Günlük özet geçmişine ekle
     if 'dayHistory' not in state:

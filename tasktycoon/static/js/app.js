@@ -518,6 +518,15 @@ function showDaySummaryModal(summary) {
 
     if (typeof summary === 'object' && summary !== null) {
         let html = '';
+        // Oyun sonu varsa büyük kutu ile göster
+        if (summary.game_over) {
+            html += `<div class="alert alert-danger text-center p-4">
+                <h4 class="mb-2">OYUN SONU</h4>
+                <div class="mb-2"><strong>${summary.game_over.reason}</strong></div>
+                <div class="mb-3">${summary.game_over.desc}</div>
+                <button class="btn btn-lg btn-primary" onclick="resetGame()">Yeniden Başlat</button>
+            </div>`;
+        }
         // Mini event varsa öne çıkar
         if (summary.mini_event) {
             html += `<div class="alert alert-info d-flex align-items-center"><i class='fas fa-bolt me-2'></i><div><strong>${summary.mini_event.name}</strong><br><span>${summary.mini_event.desc}</span></div></div>`;
@@ -527,7 +536,7 @@ function showDaySummaryModal(summary) {
             html += `<div class="alert alert-danger">${summary.bankruptcy_message}</div>`;
         }
         for (const [key, value] of Object.entries(summary)) {
-            if (key === 'bankruptcy_message' || key === 'mini_event') continue;
+            if (key === 'bankruptcy_message' || key === 'mini_event' || key === 'game_over') continue;
             html += `<div class="mb-2"><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${renderValue(value)}</div>`;
         }
         contentEl.innerHTML = html;
